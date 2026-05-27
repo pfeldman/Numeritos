@@ -26,14 +26,24 @@ function pickSecret(): number[] {
 }
 
 function evaluateGuess(guess: number[], secret: number[]): { buenos: number; regulares: number } {
+  // Si el usuario repite un dígito, contamos ese dígito una sola vez,
+  // y "bueno" gana a "regular".
   let buenos = 0;
   let regulares = 0;
+  const seen = new Set<number>();
   for (let i = 0; i < SECRET_LENGTH; i++) {
-    if (guess[i] === secret[i]) {
-      buenos++;
-    } else if (secret.includes(guess[i])) {
-      regulares++;
+    const d = guess[i];
+    if (seen.has(d)) continue;
+    seen.add(d);
+    let hasBueno = false;
+    for (let j = 0; j < SECRET_LENGTH; j++) {
+      if (guess[j] === d && secret[j] === d) {
+        hasBueno = true;
+        break;
+      }
     }
+    if (hasBueno) buenos++;
+    else if (secret.includes(d)) regulares++;
   }
   return { buenos, regulares };
 }
@@ -50,6 +60,12 @@ export default function Page() {
   const [grid, setGrid] = useState<CellState[][]>(emptyGrid);
   const [error, setError] = useState<string>('');
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const historyRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = historyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [guesses.length]);
 
   useEffect(() => {
     // initialize on client only to avoid hydration mismatch
@@ -115,11 +131,6 @@ export default function Page() {
       return;
     }
     const values = current as number[];
-    const unique = new Set(values);
-    if (unique.size !== SECRET_LENGTH) {
-      setError('Los numeritos no se pueden repetir.');
-      return;
-    }
     const { buenos, regulares } = evaluateGuess(values, secret);
     const next: Guess = { values, buenos, regulares };
     setGuesses((g) => [...g, next]);
@@ -135,7 +146,8 @@ export default function Page() {
     setGrid((g) => {
       const copy = g.map((r) => [...r]);
       const cur = copy[row][col];
-      copy[row][col] = ((cur + 1) % 3) as CellState;
+      // 0 (vacío) -> 2 (tachar) -> 1 (marcar) -> 0
+      copy[row][col] = (cur === 0 ? 2 : cur === 2 ? 1 : 0) as CellState;
       return copy;
     });
   }
@@ -145,7 +157,7 @@ export default function Page() {
   }
 
   const canSubmit = useMemo(
-    () => status === 'playing' && current.every((v) => v !== null) && new Set(current as number[]).size === SECRET_LENGTH,
+    () => status === 'playing' && current.every((v) => v !== null),
     [current, status]
   );
 
@@ -159,8 +171,8 @@ export default function Page() {
             </h1>
             <p className="mt-1 text-sm text-slate-300">
               Adiviná los 4 numeritos secretos (del 0 al 9, sin repetir).{' '}
-              <span className="text-emerald-400 font-semibold">Buenos</span> = misma posición ·{' '}
-              <span className="text-amber-300 font-semibold">Regulares</span> = el número está, en otra posición.
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400 align-middle" /> bueno = misma posición ·{' '}
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400 align-middle" /> regular = el número está, en otra posición.
             </p>
           </div>
           <div className="flex gap-2">
@@ -185,7 +197,7 @@ export default function Page() {
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
               Tus jugadas ({guesses.length})
             </h2>
-            <div className="mb-4 max-h-[360px] overflow-y-auto rounded-lg">
+            <div ref={historyRef} className="mb-4 max-h-[360px] overflow-y-auto rounded-lg">
               {guesses.length === 0 ? (
                 <p className="px-2 py-6 text-center text-sm text-slate-500">Todavía no jugaste. Probá una combinación.</p>
               ) : (
@@ -208,13 +220,26 @@ export default function Page() {
                           ))}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
-                          {g.buenos} buenos
-                        </span>
-                        <span className="rounded-full bg-amber-500/15 px-2.5 py-1 font-semibold text-amber-300 ring-1 ring-amber-500/30">
-                          {g.regulares} regulares
-                        </span>
+                      <div
+                        className="flex items-center gap-1.5"
+                        aria-label={`${g.buenos} buenos, ${g.regulares} regulares`}
+                        title={`${g.buenos} buenos · ${g.regulares} regulares`}
+                      >
+                        {Array.from({ length: g.buenos }).map((_, i) => (
+                          <span
+                            key={`b${i}`}
+                            className="h-4 w-4 rounded-full bg-emerald-400 ring-1 ring-emerald-300/60"
+                          />
+                        ))}
+                        {Array.from({ length: g.regulares }).map((_, i) => (
+                          <span
+                            key={`r${i}`}
+                            className="h-4 w-4 rounded-full bg-amber-400 ring-1 ring-amber-300/60"
+                          />
+                        ))}
+                        {g.buenos === 0 && g.regulares === 0 && (
+                          <span className="text-xs text-slate-500">— nada</span>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -279,8 +304,8 @@ export default function Page() {
           <aside className="rounded-xl bg-slate-900/60 p-4 ring-1 ring-slate-800 sm:p-6">
             <h2 className="mb-1 text-sm font-semibold uppercase tracking-wider text-slate-400">Grilla de descarte</h2>
             <p className="mb-3 text-xs text-slate-500">
-              Tocá una celda para alternar: vacío → <span className="text-emerald-400">marcar</span> →{' '}
-              <span className="text-rose-400">tachar</span>.
+              Tocá una celda para alternar: vacío → <span className="text-rose-400">tachar</span> →{' '}
+              <span className="text-emerald-400">marcar</span>.
             </p>
             <div className="inline-block rounded-lg bg-slate-950/60 p-2 ring-1 ring-slate-800">
               <div
