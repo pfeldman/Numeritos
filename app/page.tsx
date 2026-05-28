@@ -462,11 +462,8 @@ function Row({
         const base = 'h-9 w-9 rounded-md ring-1 transition select-none grid place-items-center text-base font-bold';
         let cls: string;
         let label: string;
-        if (mode === 'play') {
-          cls = 'bg-slate-900 ring-slate-700 text-slate-300 hover:bg-amber-400/20 hover:ring-amber-400/60 hover:text-amber-300';
-          label = String(digit);
-        } else if (state === 0) {
-          cls = 'bg-slate-900 ring-slate-700 text-transparent hover:bg-slate-800';
+        if (state === 0) {
+          cls = 'bg-slate-900 ring-slate-700 text-transparent';
           label = '·';
         } else if (state === 1) {
           cls = 'bg-emerald-500/20 ring-emerald-500/50 text-emerald-300';
@@ -475,12 +472,20 @@ function Row({
           cls = 'bg-rose-500/15 ring-rose-500/40 text-rose-300 line-through';
           label = '×';
         }
+        const hover =
+          mode === 'play'
+            ? 'hover:bg-amber-400/20 hover:ring-amber-400/60 cursor-pointer'
+            : 'hover:bg-slate-800';
         return (
           <button
             key={c}
             onClick={() => onCellClick(digit, c)}
-            className={`${base} ${cls}`}
-            aria-label={`Dígito ${digit} en posición ${c + 1}`}
+            className={`${base} ${cls} ${hover}`}
+            aria-label={
+              mode === 'play'
+                ? `Escribir ${digit} en posición ${c + 1}`
+                : `Dígito ${digit} en posición ${c + 1}`
+            }
           >
             {label}
           </button>
