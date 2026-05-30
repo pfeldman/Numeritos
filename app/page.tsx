@@ -59,7 +59,7 @@ export default function Page() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [status, setStatus] = useState<GameStatus>('playing');
   const [grid, setGrid] = useState<CellState[][]>(emptyGrid);
-  const [gridMode, setGridMode] = useState<GridMode>('notes');
+  const [gridMode, setGridMode] = useState<GridMode>('play');
   const [error, setError] = useState<string>('');
   const historyRef = useRef<HTMLDivElement | null>(null);
 
@@ -104,7 +104,7 @@ export default function Page() {
     setActiveIndex(0);
     setStatus('playing');
     setGrid(emptyGrid());
-    setGridMode('notes');
+    setGridMode('play');
     setError('');
   }
 
@@ -146,6 +146,7 @@ export default function Page() {
     setCurrent(Array(SECRET_LENGTH).fill(null));
     setActiveIndex(0);
     setError('');
+    setGridMode('notes');
     if (buenos === SECRET_LENGTH) setStatus('won');
   }
 
@@ -166,8 +167,8 @@ export default function Page() {
         return copy;
       });
       setActiveIndex(col);
-      // One-shot: vuelve a notas para seguir marcando.
-      setGridMode('notes');
+      // One-shot a partir del 2do turno: en el primer turno se queda en Jugar.
+      if (guesses.length > 0) setGridMode('notes');
     }
   }
 
