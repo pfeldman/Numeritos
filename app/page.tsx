@@ -167,8 +167,6 @@ export default function Page() {
         return copy;
       });
       setActiveIndex(col);
-      // One-shot a partir del 2do turno: en el primer turno se queda en Jugar.
-      if (guesses.length > 0) setGridMode('notes');
     }
   }
 
